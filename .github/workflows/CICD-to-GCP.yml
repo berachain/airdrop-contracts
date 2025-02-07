@@ -1,0 +1,68 @@
+name: CICD-to-GCP
+on:
+  workflow_dispatch:
+    inputs:
+      env_name:
+        required: true
+        type: environment
+        description: "name of the environment to deploy into"
+      app_name:
+        required: true
+        type: choice
+        options:
+          - paymaster
+        description: "name of the app to deploy"
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    outputs:
+      op_token_name: ${{ steps.output-variable.outputs.op_token_name }}
+    steps:
+      - id: output-variable
+        run: |
+          echo "$GITHUB_INPUTS"
+          app_name=bera-${{ inputs.app_name }}
+          op_token_name=$(echo "OP_SERVICE_ACCOUNT_TOKEN__${app_name//-/_}" | tr '[:lower:]' '[:upper:]')
+          echo $op_token_name
+          echo "op_token_name=$op_token_name" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_INPUTS: ${{ toJson(github.event.inputs) }}
+
+  build-an-app:
+    uses: CliqueOfficial/clique-github-workflows/.github/workflows/build-an-app-to-gcp.yml@v4.0.10
+    needs:
+      - start
+    with:
+      env_name: ${{ inputs.env_name }}
+      app_name: bera-${{ inputs.app_name }}
+      git_ref: ${{ github.head_ref || github.ref_name }}
+      dockerfile_name: ./Dockerfile
+      dockerbuild_dir: .
+    secrets:
+      PAT: ${{ secrets.GITHUB_TOKEN }}
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[needs.start.outputs.op_token_name] }}
+
+  deploy-an-app:
+    uses: CliqueOfficial/clique-github-workflows/.github/workflows/deploy-an-app-to-gcp.yml@v4.0.10
+    if: ${{ needs.build-an-app.result == 'success' }}
+    needs:
+      - start
+      - build-an-app
+    with:
+      env_name: ${{ inputs.env_name }}
+      app_name: bera-${{ inputs.app_name }}
+      git_ref: ${{ github.head_ref || github.ref_name }}
+      image_uri: ${{ needs.build-an-app.outputs.image_uri }}
+      folder_path: "K8S/GCP"
+      override_secrets: |
+        "jinja2_vars": "op://app--bera-${{ inputs.app_name }}--${{ inputs.env_name }}/jinja2_vars/notes"
+        "K8S/base/regular.env": "op://app--bera-${{ inputs.app_name }}--${{ inputs.env_name }}/regular.env/notes"
+        "K8S/base/key.env": "op://key--bera-${{ inputs.app_name }}--${{ inputs.env_name }}/key.env/notes"
+      jinja2_file: jinja2_vars
+      pre_commands: |
+        cat <<EOF >>jinja2_vars
+        app_name: bera-${{ inputs.app_name }}
+        EOF
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[needs.start.outputs.op_token_name] }}

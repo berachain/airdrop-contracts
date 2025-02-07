@@ -1,0 +1,49 @@
+name: expose-on-GCP
+on:
+  workflow_dispatch:
+    inputs:
+      env_name:
+        required: true
+        type: environment
+        description: "name of the environment to deploy into"
+      app_name:
+        required: true
+        type: choice
+        options:
+          - paymaster
+        description: "name of the app to deploy"
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    outputs:
+      op_token_name: ${{ steps.output-variable.outputs.op_token_name }}
+    steps:
+      - id: output-variable
+        run: |
+          echo "$GITHUB_INPUTS"
+          app_name=bera-${{ inputs.app_name }}
+          op_token_name=$(echo "OP_SERVICE_ACCOUNT_TOKEN__${app_name//-/_}" | tr '[:lower:]' '[:upper:]')
+          echo $op_token_name
+          echo "op_token_name=$op_token_name" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_INPUTS: ${{ toJson(github.event.inputs) }}
+
+  expose:
+    uses: CliqueOfficial/clique-github-workflows/.github/workflows/deploy-an-app-to-gcp.yml@v4.0.10
+    needs:
+    - start
+    with:
+      env_name: ${{ inputs.env_name }}
+      app_name: bera-${{ inputs.app_name }}
+      git_ref: ${{ github.head_ref || github.ref_name }}
+      folder_path: "K8S/expose"
+      override_secrets: |
+        "jinja2_vars": "op://app--bera-${{ inputs.app_name }}--${{ inputs.env_name }}/jinja2_vars/notes"
+      jinja2_file: jinja2_vars
+      pre_commands: |
+        cat <<EOF >>jinja2_vars
+        app_name: bera-${{ inputs.app_name }}
+        EOF
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[needs.start.outputs.op_token_name] }}

@@ -1,0 +1,38 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ app_name }}
+  namespace: istio-ingress
+spec:
+  gateways:
+    - istio-ingressgateway
+  hosts:
+    - {{ domain_name }}
+  http:
+    - delegate:
+        name: {{ app_name }}
+        namespace: {{ app_name }}
+      match:
+      - uri:
+          exact: /healthz
+    - delegate:
+        name: {{ app_name }}
+        namespace: {{ app_name }}
+      corsPolicy:
+        allowCredentials: false
+        allowHeaders:
+        - '*'
+        allowMethods:
+        - GET
+        - POST
+        allowOrigins:
+        - regex: ^(http|https)://({{ allow_hosts }})$
+        exposeHeaders:
+        - '*'
+        maxAge: 24h
+{% if passcode is defined %}
+      match:
+        - headers:
+            passcode:
+              exact: {{ passcode }}
+{% endif %}

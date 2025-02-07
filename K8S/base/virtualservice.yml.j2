@@ -1,0 +1,13 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ app_name }}
+spec:
+  http:
+    - route:
+        - destination:
+            host: {{ app_name }}
+          headers:
+            response:
+              set:
+                Cache-Control: no-cache

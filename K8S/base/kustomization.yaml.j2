@@ -1,0 +1,13 @@
+resources:
+  - pdb.yml
+  - service.yml
+  - virtualservice.yml
+secretGenerator:
+- name: regular.env
+  envs:
+  - regular.env
+- name: key.env
+  envs:
+  - key.env
+generatorOptions:
+  disableNameSuffixHash: true
