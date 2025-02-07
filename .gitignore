@@ -1,0 +1,20 @@
+# Compiler files
+cache/
+out/
+
+# Ignores development broadcast logs
+/broadcast
+
+# Docs
+docs/
+
+# Dotenv file
+.env
+
+/*.json
+info.txt
+
+script/config.py
+
+__pycache__/
+verify.sh

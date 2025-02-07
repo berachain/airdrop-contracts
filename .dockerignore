@@ -1,0 +1,24 @@
+# Build artifacts and dependencies
+target/
+node_modules/
+
+# Forge/Foundry artifacts
+out/
+cache/
+broadcast/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Debug files
+*.log
+
+# Assets folder
+assets/
+
+# Environment files
+.env
+.env.* 
